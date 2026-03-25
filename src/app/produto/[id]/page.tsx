@@ -6,6 +6,9 @@ import { useProductStore } from '@/store/productStore';
 import { useCartStore } from '@/store/cartStore';
 import CartDrawer from '@/components/CartDrawer';
 
+// O force-dynamic fica logo depois dos imports!
+export const dynamic = 'force-dynamic';
+
 export default function ProductPage({ params }: { params: { id: string } }) {
   const productId = params.id;
   
