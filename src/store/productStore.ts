@@ -12,6 +12,7 @@ export type Product = {
   descricao?: string;
   colecao?: string;
   novo?: boolean;
+  categoria?: string; // <-- Adicionamos isso aqui para parar o erro da página de Admin!
 };
 
 type ProductState = {
@@ -34,6 +35,7 @@ const initialProducts: Product[] = mockProducts.map((p) => ({
   descricao: p.description,
   colecao: p.collection,
   novo: p.isNew,
+  categoria: 'Geral', // Dando um valor padrão para os produtos antigos
 }));
 
 export const useProductStore = create<ProductState>((set) => ({

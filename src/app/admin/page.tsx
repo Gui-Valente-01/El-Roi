@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useProductStore, Product } from '@/store/productStore';
+import { useProductStore } from '@/store/productStore';
 
 const ADMIN_PASSWORD = 'admin123';
 
@@ -16,14 +16,18 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
 
-  const [form, setForm] = useState<Omit<Product, 'id'>>({
+  // Adicionado: descricao e categoria para deixar o produto completo!
+  const [form, setForm] = useState({
     nome: '',
+    descricao: '',
+    categoria: 'Geral',
     preco: 0,
     tamanho: 'M',
     imagem: '',
     badge: '',
     estoque: 0,
   });
+  
   const [imagePreview, setImagePreview] = useState('');
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,19 +64,27 @@ export default function AdminPage() {
   const logout = () => {
     window.localStorage.removeItem('elroi-admin-auth');
     setLoggedIn(false);
-    setEditingProductId(null);
-    setForm({ nome: '', preco: 0, tamanho: 'M', imagem: '', badge: '', estoque: 0 });
+    clearForm();
   };
 
-  const startEdit = (product: Product) => {
+  const startEdit = (product: any) => {
     setEditingProductId(product.id);
-    setForm({ nome: product.nome, preco: product.preco, tamanho: product.tamanho, imagem: product.imagem, badge: product.badge || '', estoque: product.estoque });
+    setForm({ 
+      nome: product.nome, 
+      descricao: product.descricao || '',
+      categoria: product.categoria || 'Geral',
+      preco: product.preco, 
+      tamanho: product.tamanho, 
+      imagem: product.imagem, 
+      badge: product.badge || '', 
+      estoque: product.estoque 
+    });
     setImagePreview(product.imagem);
   };
 
   const clearForm = () => {
     setEditingProductId(null);
-    setForm({ nome: '', preco: 0, tamanho: 'M', imagem: '', badge: '', estoque: 0 });
+    setForm({ nome: '', descricao: '', categoria: 'Geral', preco: 0, tamanho: 'M', imagem: '', badge: '', estoque: 0 });
     setImagePreview('');
   };
 
@@ -83,192 +95,239 @@ export default function AdminPage() {
       return;
     }
     if (editingProductId) {
-      updateProduct(editingProductId, form);
+      updateProduct(editingProductId, form as any);
       clearForm();
       return;
     }
-    addProduct(form);
+    addProduct(form as any);
     clearForm();
   };
 
   const totalProdutos = useMemo(() => products.length, [products]);
 
+  // TELA DE LOGIN
   if (!loggedIn) {
     return (
-      <div className="min-h-screen bg-elroi-lightblue flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-elroi-blue mb-4">Admin El Roi</h1>
-          <p className="text-sm text-elroi-gray mb-4">Digite a senha para acessar o painel de produtos.</p>
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-10 border border-gray-100 text-center">
+          <div className="w-16 h-16 bg-elroi-blue text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6 shadow-md">
+            ER
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Painel El Roi</h1>
+          <p className="text-gray-500 mb-8">Acesso restrito à gestão da loja.</p>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-3"
-            placeholder="Senha de admin"
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 mb-4 focus:ring-2 focus:ring-elroi-blue focus:border-transparent outline-none transition"
+            placeholder="Digite a senha administrativa"
           />
-          <button onClick={handleLogin} className="w-full bg-elroi-blue text-white py-2 rounded-lg hover:bg-elroi-black transition">
-            Entrar
+          <button onClick={handleLogin} className="w-full bg-elroi-blue text-white py-3 rounded-xl font-semibold hover:bg-elroi-black hover:shadow-lg transition-all duration-300">
+            Acessar Painel
           </button>
-          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+          {error && <p className="text-sm text-red-500 mt-4 font-medium">{error}</p>}
         </div>
       </div>
     );
   }
 
+  // TELA DE ADMIN LOGADO
   return (
-    <div className="min-h-screen bg-elroi-lightblue text-elroi-gray p-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-gray-50 text-gray-800 p-4 sm:p-8 font-sans">
+      <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* CABEÇALHO */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div>
-            <h1 className="text-3xl font-bold text-elroi-blue">Painel Admin</h1>
-            <div className="mt-2 flex gap-4">
-              <a href="/admin/sales" className="text-sm text-elroi-blue hover:underline">
-                → Ver Dashboard de Vendas
-              </a>
-            </div>
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Gestão de Produtos</h1>
+            <p className="text-sm text-gray-500 mt-1">Gerencie seu catálogo, estoque e categorias.</p>
           </div>
-          <button onClick={logout} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
-            Sair
-          </button>
-        </div>
+          <div className="mt-4 sm:mt-0 flex gap-3">
+            <a href="/admin/sales" className="px-5 py-2.5 bg-elroi-lightblue text-elroi-blue font-semibold rounded-xl hover:bg-blue-100 transition">
+              Dashboard de Vendas
+            </a>
+            <button onClick={logout} className="px-5 py-2.5 border border-red-200 text-red-600 font-semibold rounded-xl hover:bg-red-50 transition">
+              Sair
+            </button>
+          </div>
+        </header>
 
-        <div className="bg-white rounded-2xl shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Editar / Adicionar produto</h2>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <input
-              value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              placeholder="Nome"
-              className="border border-gray-300 rounded-lg px-3 py-2"
-              required
-            />
-            <input
-              type="number"
-              value={form.preco}
-              onChange={(e) => setForm({ ...form, preco: parseFloat(e.target.value) || 0 })}
-              placeholder="Preço"
-              className="border border-gray-300 rounded-lg px-3 py-2"
-              min={0}
-              step="0.01"
-              required
-            />
-            <select
-              value={form.tamanho}
-              onChange={(e) => setForm({ ...form, tamanho: e.target.value })}
-              className="border border-gray-300 rounded-lg px-3 py-2"
-            >
-              <option value="P">P</option>
-              <option value="M">M</option>
-              <option value="G">G</option>
-              <option value="GG">GG</option>
-            </select>
-            <input
-              value={form.imagem}
-              onChange={(e) => {
-                setForm({ ...form, imagem: e.target.value });
-                setImagePreview(e.target.value);
-              }}
-              placeholder="URL da imagem ou carregue arquivo"
-              className="border border-gray-300 rounded-lg px-3 py-2 col-span-1 sm:col-span-2 lg:col-span-1"
-            />
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="border border-gray-300 rounded-lg px-3 py-2 col-span-1 sm:col-span-2 lg:col-span-1"
-            />
-            {imagePreview && (
-              <img
-                src={imagePreview}
-                alt="Preview da imagem do produto"
-                className="w-full h-24 object-cover rounded-lg col-span-full"
-              />
+        {/* FORMULÁRIO DE PRODUTO */}
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h2 className="text-lg font-bold text-gray-800">
+              {editingProductId ? '✏️ Editando Produto' : '✨ Novo Produto'}
+            </h2>
+            {editingProductId && (
+              <span className="text-xs bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full font-semibold">Modo Edição</span>
             )}
-            <input
-              type="number"
-              value={form.estoque}
-              onChange={(e) => setForm({ ...form, estoque: parseInt(e.target.value) || 0 })}
-              placeholder="Estoque"
-              className="border border-gray-300 rounded-lg px-3 py-2"
-              min={0}
-              required
-            />
-            <input
-              value={form.badge}
-              onChange={(e) => setForm({ ...form, badge: e.target.value })}
-              placeholder="Badge (opcional)"
-              className="border border-gray-300 rounded-lg px-3 py-2 col-span-1 sm:col-span-2 lg:col-span-1"
-            />
-            <div className="flex gap-2 col-span-full">
-              <button type="submit" className="bg-elroi-blue text-white px-5 py-2 rounded-lg hover:bg-elroi-black transition">
-                {editingProductId ? 'Salvar alterações' : 'Adicionar produto'}
-              </button>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Coluna 1: Infos Básicas */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Informações Principais</h3>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Peça *</label>
+                  <input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Ex: Camiseta Oversized" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-elroi-blue outline-none" required />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                  <select value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-elroi-blue outline-none">
+                    <option value="Camisetas">Camisetas</option>
+                    <option value="Moletons">Moletons</option>
+                    <option value="Acessórios">Acessórios</option>
+                    <option value="Geral">Geral</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                  <textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Detalhes do tecido, caimento..." rows={3} className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-elroi-blue outline-none resize-none" />
+                </div>
+              </div>
+
+              {/* Coluna 2: Preço e Estoque */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Vendas e Estoque</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Preço (R$) *</label>
+                    <input type="number" value={form.preco} onChange={(e) => setForm({ ...form, preco: parseFloat(e.target.value) || 0 })} placeholder="99.90" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-elroi-blue outline-none" min={0} step="0.01" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Estoque *</label>
+                    <input type="number" value={form.estoque} onChange={(e) => setForm({ ...form, estoque: parseInt(e.target.value) || 0 })} placeholder="0" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-elroi-blue outline-none" min={0} required />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tamanho</label>
+                    <select value={form.tamanho} onChange={(e) => setForm({ ...form, tamanho: e.target.value })} className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-elroi-blue outline-none">
+                      <option value="U">Único (U)</option>
+                      <option value="P">P</option>
+                      <option value="M">M</option>
+                      <option value="G">G</option>
+                      <option value="GG">GG</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Badge (Ex: Novo)</label>
+                    <input value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value })} placeholder="Opcional" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-elroi-blue outline-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Coluna 3: Mídia */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Mídia do Produto</h3>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Imagem (URL ou Arquivo)</label>
+                  <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm mb-2" />
+                  <input value={form.imagem} onChange={(e) => { setForm({ ...form, imagem: e.target.value }); setImagePreview(e.target.value); }} placeholder="Ou cole a URL da imagem aqui" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-elroi-blue outline-none text-sm" />
+                </div>
+
+                <div className="mt-2 border-2 border-dashed border-gray-200 rounded-xl h-32 flex items-center justify-center overflow-hidden bg-gray-50">
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-gray-400 text-sm">Preview da Imagem</span>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-gray-100 flex gap-3 justify-end">
               {editingProductId && (
-                <button type="button" onClick={clearForm} className="bg-gray-200 text-black px-4 py-2 rounded-lg hover:bg-gray-300 transition">
-                  Cancelar edição
+                <button type="button" onClick={clearForm} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition">
+                  Cancelar
                 </button>
               )}
+              <button type="submit" className="px-8 py-3 bg-elroi-blue text-white font-semibold rounded-xl hover:bg-elroi-black shadow-md hover:shadow-lg transition">
+                {editingProductId ? 'Salvar Alterações' : 'Adicionar ao Catálogo'}
+              </button>
             </div>
           </form>
-          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
-        </div>
+        </section>
 
-        <div className="bg-white rounded-2xl shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Produtos cadastrados</h2>
-            <span className="text-sm text-elroi-gray">Total: {totalProdutos}</span>
+        {/* LISTA DE PRODUTOS */}
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h2 className="text-lg font-bold text-gray-800">Catálogo Atual</h2>
+            <span className="bg-elroi-blue text-white text-xs font-bold px-3 py-1 rounded-full">{totalProdutos} produtos</span>
           </div>
+
           <div className="overflow-x-auto">
             <table className="min-w-full border-collapse">
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-3 text-left text-sm font-semibold text-gray-600">Nome</th>
-                  <th className="p-3 text-left text-sm font-semibold text-gray-600">Preço</th>
-                  <th className="p-3 text-left text-sm font-semibold text-gray-600">Tamanho</th>
-                  <th className="p-3 text-left text-sm font-semibold text-gray-600">Estoque</th>
-                  <th className="p-3 text-left text-sm font-semibold text-gray-600">Badge</th>
-                  <th className="p-3 text-left text-sm font-semibold text-gray-600">Ações</th>
+                <tr className="bg-white border-b border-gray-100">
+                  <th className="p-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Produto</th>
+                  <th className="p-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Preço</th>
+                  <th className="p-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Estoque</th>
+                  <th className="p-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Categoria</th>
+                  <th className="p-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-50">
                 {products.map((product) => (
-                  <tr key={product.id} className="border-t">
-                    <td className="p-3 text-sm">{product.nome}</td>
-                    <td className="p-3 text-sm">R$ {product.preco.toFixed(2)}</td>
-                    <td className="p-3 text-sm">{product.tamanho}</td>
-                    <td className="p-3 text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        product.estoque === 0 ? 'bg-red-100 text-red-700' : product.estoque < 20 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+                  <tr key={product.id} className="hover:bg-gray-50 transition">
+                    <td className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden border border-gray-200 shrink-0">
+                          {product.imagem ? <img src={product.imagem} alt={product.nome} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-200" />}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900">{product.nome}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Tam: {product.tamanho}</span>
+                            {product.badge && <span className="text-xs text-elroi-blue bg-elroi-lightblue px-2 py-0.5 rounded font-semibold">{product.badge}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4 font-semibold text-gray-900">
+                      R$ {product.preco.toFixed(2)}
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        product.estoque === 0 ? 'bg-red-100 text-red-700' : product.estoque < 10 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
                       }`}>
-                        {product.estoque}
+                        {product.estoque} un
                       </span>
                     </td>
-                    <td className="p-3 text-sm">{product.badge || '-'}</td>
-                    <td className="p-3 text-sm flex gap-2">
-                      <button
-                        onClick={() => startEdit(product)}
-                        className="bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-500 transition"
-                      >
+                    <td className="p-4">
+                      <span className="text-sm text-gray-600">{product.categoria || 'Geral'}</span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button onClick={() => startEdit(product)} className="text-blue-600 hover:text-blue-800 font-semibold text-sm mr-4 transition">
                         Editar
                       </button>
-                      <button
-                        onClick={() => deleteProduct(product.id)}
-                        className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition"
-                      >
-                        Remover
+                      <button onClick={() => deleteProduct(product.id)} className="text-red-500 hover:text-red-700 font-semibold text-sm transition">
+                        Excluir
                       </button>
                     </td>
                   </tr>
                 ))}
                 {products.length === 0 && (
                   <tr>
-                    <td className="p-3 text-sm" colSpan={5}>Nenhum produto cadastrado.</td>
+                    <td colSpan={5} className="p-8 text-center text-gray-400">
+                      Nenhum produto cadastrado ainda. Use o formulário acima para começar.
+                    </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
+
       </div>
     </div>
   );
