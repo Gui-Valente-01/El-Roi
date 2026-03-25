@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --elroi-blue: #1C2E4A;
+  --elroi-sand: #D9D7CF;
+  --elroi-gray: #3C3C3C;
+  --elroi-lightblue: #E6ECFD;
+  --elroi-black: #111111;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+}
