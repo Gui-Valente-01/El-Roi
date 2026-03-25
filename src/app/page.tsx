@@ -1,20 +1,64 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link'; // <-- Adicionado para fazer os botões de navegação funcionarem
 import CartDrawer from '@/components/CartDrawer';
 import { useCartStore } from '@/store/cartStore';
-import { useProductStore, Product } from '@/store/productStore';
+import { supabase } from '@/lib/supabase';
+
+// Definindo o tipo Produto (igual ao do banco)
+type ProdutoDB = {
+  id: string;
+  nome: string;
+  descricao: string;
+  categoria: string;
+  preco: number;
+  tamanho: string;
+  imagem: string;
+  badge: string;
+  estoque: number;
+};
 
 export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const cartItems = useCartStore((state) => state.items);
   const addToCart = useCartStore((state) => state.addToCart);
-  const products = useProductStore((state) => state.products);
+  
+  // Criamos um novo estado para guardar os produtos reais do banco
+  const [produtosReais, setProdutosReais] = useState<ProdutoDB[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const itemCount = cartItems.reduce((acc, item) => acc + item.quantidade, 0);
 
-  const handleAddToCart = (product: Product) => {
-    addToCart({ ...product, quantidade: 1 });
+  // Função que busca os produtos no Supabase
+  const fetchProdutos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('produtos')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      if (data) setProdutosReais(data);
+    } catch (error) {
+      console.error("Erro ao buscar produtos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Manda buscar os produtos assim que a página carrega
+  useEffect(() => {
+    fetchProdutos();
+  }, []);
+
+  // Adicionando uma trava de segurança para o tamanho
+  const handleAddToCart = (product: any) => {
+    addToCart({ 
+      ...product, 
+      tamanho: product.tamanho || 'M', // Se não tiver tamanho, vai 'M' por padrão
+      quantidade: 1 
+    });
     setIsCartOpen(true);
   };
 
@@ -34,7 +78,7 @@ export default function Home() {
           <nav className="hidden md:flex gap-8 text-sm font-medium text-white uppercase tracking-wider">
             <a href="#colecoes" className="hover:text-[#D9D7CF] transition-colors">Coleções</a>
             <a href="#promocoes" className="hover:text-[#D9D7CF] transition-colors">Promoções</a>
-            <a href="/marca" className="hover:text-[#D9D7CF] transition-colors">A Marca</a>
+            <Link href="/marca" className="hover:text-[#D9D7CF] transition-colors">A Marca</Link>
           </nav>
           <button
             onClick={() => setIsCartOpen(true)}
@@ -70,7 +114,7 @@ export default function Home() {
             </p>
             <button
               className="bg-[#D9D7CF] text-[#1C2E4A] font-bold uppercase tracking-widest text-sm px-10 py-4 rounded-full hover:bg-white hover:scale-105 transition-all shadow-xl"
-              onClick={() => document.getElementById('promocoes')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => document.getElementById('colecoes')?.scrollIntoView({ behavior: 'smooth' })}
             >
               Ver Coleções
             </button>
@@ -88,9 +132,14 @@ export default function Home() {
               <button
                 className="bg-[#1C2E4A] text-white uppercase tracking-wider text-sm px-8 py-4 rounded-full font-bold hover:bg-black transition-colors shadow-lg"
                 onClick={() => {
-                  const combo = products.find((p) => p.id === 'combo1');
-                  if (combo) handleAddToCart(combo);
-                  else handleAddToCart({ id: 'combo1', nome: 'Combo T-Shirt + Moletom', preco: 249.9, tamanho: 'M', imagem: '', estoque: 10 });
+                  handleAddToCart({ 
+                    id: 'combo-1', 
+                    nome: 'Combo Especial T-Shirt + Moletom', 
+                    preco: 249.90, 
+                    tamanho: 'M', 
+                    imagem: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=1000&auto=format&fit=crop', 
+                    estoque: 10 
+                  });
                 }}
               >
                 Comprar o Combo
@@ -98,7 +147,7 @@ export default function Home() {
             </div>
             <div className="h-64 md:h-80 rounded-2xl overflow-hidden shadow-inner relative bg-gray-100">
               <img
-                src={products.find((p) => p.id === 'combo1')?.imagem || 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=1000&auto=format&fit=crop'}
+                src={'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=1000&auto=format&fit=crop'}
                 alt="Promoção combo"
                 className="h-full w-full object-cover"
               />
@@ -111,11 +160,9 @@ export default function Home() {
           <h2 className="font-monigue text-5xl md:text-7xl mb-12 text-center text-[#1C2E4A] tracking-wider">Coleções</h2>
           
           <div className="grid gap-8 md:grid-cols-2">
-            {/* Card Coleção Gênesis (Fundo Urbano) */}
-            <div 
-              className="relative h-80 md:h-96 rounded-3xl overflow-hidden group cursor-pointer shadow-xl bg-cover bg-center"
-              style={{ backgroundImage: "url('https://images.unsplash.com/photo-1517502474497-29ab5c192e59?q=80&w=1000&auto=format&fit=crop')" }}
-            >
+            {/* Card Coleção Gênesis */}
+            <Link href="/colecoes" className="relative h-80 md:h-96 rounded-3xl overflow-hidden group cursor-pointer shadow-xl bg-cover bg-center block"
+              style={{ backgroundImage: "url('https://images.unsplash.com/photo-1517502474497-29ab5c192e59?q=80&w=1000&auto=format&fit=crop')" }}>
               <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all duration-500" />
               <div className="absolute inset-0 flex flex-col justify-center items-center px-6 text-center text-white">
                 <h3 className="font-monigue text-5xl md:text-6xl tracking-widest drop-shadow-lg group-hover:scale-105 transition-transform duration-500">Gênesis</h3>
@@ -124,13 +171,11 @@ export default function Home() {
               <div className="absolute inset-0 flex items-end justify-center pb-8 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                 <span className="text-sm bg-white text-black font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow-lg">Descobrir</span>
               </div>
-            </div>
+            </Link>
 
-            {/* Card Coleção Essenciais (Fundo Minimalista/Tecido) */}
-            <div 
-              className="relative h-80 md:h-96 rounded-3xl overflow-hidden group cursor-pointer shadow-xl bg-cover bg-center"
-              style={{ backgroundImage: "url('https://images.unsplash.com/photo-1618331835717-801e976710b2?q=80&w=1000&auto=format&fit=crop')" }}
-            >
+            {/* Card Coleção Essenciais */}
+            <Link href="/colecoes" className="relative h-80 md:h-96 rounded-3xl overflow-hidden group cursor-pointer shadow-xl bg-cover bg-center block"
+              style={{ backgroundImage: "url('https://images.unsplash.com/photo-1618331835717-801e976710b2?q=80&w=1000&auto=format&fit=crop')" }}>
               <div className="absolute inset-0 bg-[#1C2E4A]/50 group-hover:bg-[#1C2E4A]/30 transition-all duration-500" />
               <div className="absolute inset-0 flex flex-col justify-center items-center px-6 text-center text-white">
                 <h3 className="font-monigue text-5xl md:text-6xl tracking-widest drop-shadow-lg group-hover:scale-105 transition-transform duration-500">Essenciais</h3>
@@ -139,54 +184,63 @@ export default function Home() {
               <div className="absolute inset-0 flex items-end justify-center pb-8 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                 <span className="text-sm bg-white text-black font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow-lg">Descobrir</span>
               </div>
-            </div>
+            </Link>
           </div>
         </section>
 
-        {/* PRODUTOS (MANTIDOS EXATAMENTE COMO VOCÊ PEDIU) */}
+        {/* PRODUTOS REAIS DO SUPABASE */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <h2 className="font-monigue text-5xl md:text-7xl mb-12 text-center text-[#1C2E4A] tracking-wider">Mais Vendidos</h2>
-          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            {products.map((product) => (
-              <div key={product.id} className="bg-white rounded-xl p-4 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between h-full relative group border border-gray-50">
-                
-                <a href={`/produto/${product.id}`} className="block cursor-pointer flex-grow">
-                  {product.imagem ? (
-                    <img
-                      src={product.imagem}
-                      alt={product.nome}
-                      className="h-56 w-full object-cover rounded-lg group-hover:opacity-90 transition-opacity"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = '/fallback-image.png';
-                      }}
-                    />
-                  ) : (
-                    <div className="h-56 rounded-lg bg-gray-100 flex items-center justify-center text-sm font-bold text-center text-gray-400">
-                      Sem imagem
+          
+          {loading ? (
+             <div className="flex justify-center items-center h-40">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1C2E4A]"></div>
+             </div>
+          ) : produtosReais.length === 0 ? (
+             <p className="text-center text-gray-500 text-lg">Nenhum produto disponível no momento.</p>
+          ) : (
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              {produtosReais.map((product) => (
+                <div key={product.id} className="bg-white rounded-xl p-4 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between h-full relative group border border-gray-50">
+                  
+                  <Link href={`/produto/${product.id}`} className="block cursor-pointer flex-grow">
+                    {product.imagem ? (
+                      <img
+                        src={product.imagem}
+                        alt={product.nome}
+                        className="h-56 w-full object-cover rounded-lg group-hover:opacity-90 transition-opacity"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = '/fallback-image.png';
+                        }}
+                      />
+                    ) : (
+                      <div className="h-56 rounded-lg bg-gray-100 flex items-center justify-center text-sm font-bold text-center text-gray-400">
+                        Sem imagem
+                      </div>
+                    )}
+                    <div className="mt-5 mb-6">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-bold text-gray-900 leading-tight">{product.nome}</h3>
+                        {product.badge && <span className="text-xs bg-[#1C2E4A] text-white px-2 py-1 rounded-md whitespace-nowrap">{product.badge}</span>}
+                      </div>
+                      <p className="mt-3 font-black text-lg text-[#1C2E4A]">R$ {Number(product.preco).toFixed(2).replace('.', ',')}</p>
                     </div>
-                  )}
-                  <div className="mt-5 mb-6">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-bold text-gray-900 leading-tight">{product.nome}</h3>
-                      {product.badge && <span className="text-xs bg-[#1C2E4A] text-white px-2 py-1 rounded-md whitespace-nowrap">{product.badge}</span>}
-                    </div>
-                    <p className="mt-3 font-black text-lg text-[#1C2E4A]">R$ {product.preco.toFixed(2).replace('.', ',')}</p>
-                  </div>
-                </a>
+                  </Link>
 
-                <button
-                  className="w-full bg-transparent border-2 border-[#1C2E4A] text-[#1C2E4A] group-hover:bg-[#1C2E4A] group-hover:text-white py-3 rounded-lg font-bold uppercase tracking-wider text-sm transition-colors mt-auto z-10 relative"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleAddToCart(product);
-                  }}
-                >
-                  Adicionar
-                </button>
-              </div>
-            ))}
-          </div>
+                  <button
+                    className="w-full bg-transparent border-2 border-[#1C2E4A] text-[#1C2E4A] hover:bg-[#1C2E4A] hover:text-white py-3 rounded-lg font-bold uppercase tracking-wider text-sm transition-colors mt-auto z-10 relative"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleAddToCart(product);
+                    }}
+                  >
+                    Adicionar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </main>
 

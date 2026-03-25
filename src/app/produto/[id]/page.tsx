@@ -1,30 +1,76 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useProductStore } from '@/store/productStore';
+import { useParams } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import CartDrawer from '@/components/CartDrawer';
+import { supabase } from '@/lib/supabase';
 
-// O force-dynamic fica logo depois dos imports!
-export const dynamic = 'force-dynamic';
+// Tipo do seu banco de dados
+type ProdutoDB = {
+  id: string;
+  nome: string;
+  descricao: string;
+  categoria: string;
+  preco: number;
+  tamanho: string;
+  imagem: string;
+  badge: string;
+  estoque: number;
+};
 
-export default function ProductPage({ params }: { params: { id: string } }) {
-  const productId = params.id;
+export default function ProductPage() {
+  const params = useParams();
+  const productId = params.id as string;
   
-  const products = useProductStore((state) => state.products);
-  const product = products.find((p) => p.id === productId);
+  // Estados do Produto e Carregamento
+  const [product, setProduct] = useState<ProdutoDB | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Estados da Página
   const [selectedSize, setSelectedSize] = useState<'P' | 'M' | 'G' | 'GG'>('M');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [added, setAdded] = useState(false);
   
+  // Estados do Frete
+  const [postalCode, setPostalCode] = useState('');
+  const [frete, setFrete] = useState<string | null>(null);
+
+  // Carrinho Global
   const cartItems = useCartStore((state) => state.items);
   const addToCart = useCartStore((state) => state.addToCart);
   const itemCount = cartItems.reduce((acc, item) => acc + item.quantidade, 0);
 
-  const [postalCode, setPostalCode] = useState('');
-  const [frete, setFrete] = useState<string | null>(null);
-  const [added, setAdded] = useState(false);
+  // Busca o produto real no Supabase
+  useEffect(() => {
+    const fetchProduct = async () => {
+      if (!productId) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('produtos')
+          .select('*')
+          .eq('id', productId)
+          .single();
+        
+        if (error) throw error;
+        if (data) {
+          setProduct(data);
+          // Se o produto tiver um tamanho padrão cadastrado, já deixa selecionado
+          if (data.tamanho && ['P', 'M', 'G', 'GG'].includes(data.tamanho)) {
+            setSelectedSize(data.tamanho as 'P' | 'M' | 'G' | 'GG');
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao buscar produto:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [productId]);
 
   const handleCalcularFrete = () => {
     if (!postalCode.trim()) {
@@ -43,11 +89,21 @@ export default function ProductPage({ params }: { params: { id: string } }) {
     }
   };
 
+  // TELA DE CARREGAMENTO
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FA]">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#1C2E4A]"></div>
+      </div>
+    );
+  }
+
+  // TELA DE PRODUTO NÃO ENCONTRADO
   if (!product) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FA]">
         <h1 className="font-monigue text-5xl text-[#1C2E4A] mb-4">Produto não encontrado</h1>
-        <Link href="/" className="text-gray-500 hover:text-[#1C2E4A] underline font-poppins">
+        <Link href="/" className="text-gray-500 hover:text-[#1C2E4A] underline font-sans font-bold">
           Voltar para a loja
         </Link>
       </div>
@@ -55,7 +111,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="bg-white min-h-screen font-sans text-gray-800">
+    <div className="bg-white min-h-screen font-sans text-gray-800 flex flex-col">
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
       {/* HEADER SIMPLIFICADO */}
@@ -76,7 +132,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
               {itemCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-[#D9D7CF] text-[#1C2E4A] text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full">
+                <span className="absolute -top-2 -right-2 bg-[#D9D7CF] text-[#1C2E4A] text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-sm">
                   {itemCount}
                 </span>
               )}
@@ -85,7 +141,8 @@ export default function ProductPage({ params }: { params: { id: string } }) {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+      {/* CONTEÚDO PRINCIPAL */}
+      <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 w-full">
         
         {/* Breadcrumb */}
         <div className="text-sm text-gray-400 mb-8 font-medium uppercase tracking-wider">
@@ -116,15 +173,29 @@ export default function ProductPage({ params }: { params: { id: string } }) {
 
           {/* LADO DIREITO: INFOS */}
           <div className="flex flex-col pt-4 md:pt-10">
-            <h1 className="font-monigue text-5xl md:text-6xl text-[#1C2E4A] tracking-wider mb-2 leading-tight">
-              {product.nome}
-            </h1>
+            <div className="flex justify-between items-start">
+              <h1 className="font-monigue text-5xl md:text-6xl text-[#1C2E4A] tracking-wider mb-2 leading-tight">
+                {product.nome}
+              </h1>
+              {product.badge && (
+                <span className="bg-[#1C2E4A] text-white text-xs px-3 py-1 rounded-full uppercase tracking-wider font-bold mt-3">
+                  {product.badge}
+                </span>
+              )}
+            </div>
             
             <p className="text-3xl font-black text-gray-900 mb-6">
-              R$ {product.preco.toFixed(2).replace('.', ',')}
+              R$ {Number(product.preco).toFixed(2).replace('.', ',')}
             </p>
 
             <div className="w-full h-[1px] bg-gray-200 mb-8"></div>
+
+            <div className="mb-8">
+              <h3 className="font-bold text-gray-900 uppercase tracking-wider text-sm mb-3">Detalhes da Peça</h3>
+              <p className="text-gray-600 leading-relaxed font-light">
+                {product.descricao || 'Peça exclusiva da coleção El Roi. Feita com propósito.'}
+              </p>
+            </div>
 
             {/* SELETOR DE TAMANHOS */}
             <div className="mb-8">
@@ -173,21 +244,30 @@ export default function ProductPage({ params }: { params: { id: string } }) {
             {/* BOTÃO DE COMPRAR */}
             <button
               onClick={handleAddToCart}
+              disabled={product.estoque <= 0}
               className={`w-full py-5 rounded-xl font-bold uppercase tracking-widest text-sm transition-all shadow-xl mt-4 ${
-                added 
-                  ? 'bg-green-600 text-white' 
-                  : 'bg-[#D9D7CF] text-[#1C2E4A] hover:bg-[#1C2E4A] hover:text-white'
+                product.estoque <= 0
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : added 
+                    ? 'bg-green-600 text-white' 
+                    : 'bg-[#D9D7CF] text-[#1C2E4A] hover:bg-[#1C2E4A] hover:text-white'
               }`}
             >
-              {added ? '✓ Adicionado' : 'Adicionar ao Carrinho'}
+              {product.estoque <= 0 ? 'Esgotado' : added ? '✓ Adicionado' : 'Adicionar ao Carrinho'}
             </button>
+            
+            {product.estoque > 0 && product.estoque <= 5 && (
+              <p className="text-xs text-red-500 mt-4 text-center font-bold uppercase tracking-widest">
+                Últimas {product.estoque} unidades no estoque
+              </p>
+            )}
 
           </div>
         </div>
       </main>
       
       {/* FOOTER DA PÁGINA */}
-      <footer className="bg-black text-[#D9D7CF] py-12 border-t-[6px] border-[#1C2E4A] mt-20">
+      <footer className="bg-black text-[#D9D7CF] py-12 border-t-[6px] border-[#1C2E4A] mt-auto">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="font-collsmith text-3xl text-gray-400">O Deus que me vê.</p>
         </div>
