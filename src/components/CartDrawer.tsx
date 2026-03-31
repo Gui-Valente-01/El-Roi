@@ -21,41 +21,51 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false); // NOVO ESTADO DE CARREGAMENTO
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (items.length === 0) {
       setCheckoutError('Seu carrinho está vazio.');
       return;
     }
 
     try {
-      // Registrar a venda
-      addSale({
-        date: new Date().toISOString(),
-        items: items.map((item) => ({
-          nome: item.nome,
-          preco: item.preco,
-          quantidade: item.quantidade,
-        })),
-        total: total,
-      });
-
-      // Reduzir estoque
-      items.forEach((item) => {
-        reduceStock(item.id, item.quantidade);
-      });
-
-      // Limpar carrinho e mostrar sucesso
-      clearCart();
-      setCheckoutSuccess(true);
+      setLoading(true);
       setCheckoutError(null);
 
-      setTimeout(() => {
-        setCheckoutSuccess(false);
-        onClose();
-      }, 2000);
+      /* * NOTA IMPORTANTE SOBRE ESTOQUE E VENDAS:
+       * O ideal é que o 'addSale', 'reduceStock' e 'clearCart' só sejam chamados 
+       * QUANDO o cliente efetivamente pagar na Stripe (usando Webhooks). 
+       * Por enquanto, vou deixá-los comentados para não zerar seu estoque 
+       * só de o cliente clicar no botão e desistir de pagar na tela da Stripe.
+       */
+      
+      // addSale({ ... });
+      // items.forEach((item) => { reduceStock(item.id, item.quantidade); });
+      // clearCart();
+
+      // Chamada para a nossa API da Stripe
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ items }),
+      });
+
+      const data = await response.json();
+
+      if (data.url) {
+        // Deu certo! Manda o usuário para a tela de pagamento
+        window.location.href = data.url;
+      } else {
+        setCheckoutError('Erro ao gerar link de pagamento. Tente novamente.');
+      }
     } catch (error) {
-      setCheckoutError('Erro ao processar pagamento. Tente novamente.');
+      console.error('Erro no checkout:', error);
+      setCheckoutError('Erro de conexão ao processar pagamento.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -169,7 +179,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           {/* Mensagens de Feedback */}
           {checkoutSuccess && (
             <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 text-green-300 text-sm rounded-lg text-center font-semibold">
-              ✓ Compra realizada com sucesso!
+              ✓ Compra preparada com sucesso!
             </div>
           )}
 
@@ -182,16 +192,17 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           <div className="space-y-3">
             <button
               onClick={handleCheckout}
-              disabled={items.length === 0}
+              disabled={items.length === 0 || loading}
               className="w-full bg-[#D9D7CF] text-[#1C2E4A] px-4 py-4 rounded-xl font-bold uppercase tracking-widest text-sm hover:bg-white transition-all shadow-lg hover:shadow-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Finalizar Compra
+              {loading ? 'Preparando pagamento...' : 'Finalizar Compra'}
             </button>
 
             {items.length > 0 && (
               <button
-                className="w-full rounded-xl border border-gray-600 px-4 py-3 text-sm font-semibold text-gray-300 hover:bg-white/5 transition-colors uppercase tracking-wider"
+                className="w-full rounded-xl border border-gray-600 px-4 py-3 text-sm font-semibold text-gray-300 hover:bg-white/5 transition-colors uppercase tracking-wider disabled:opacity-50"
                 onClick={clearCart}
+                disabled={loading}
               >
                 Limpar Carrinho
               </button>
