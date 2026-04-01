@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { supabase } from '@/lib/supabase'; // Certifique-se que o caminho do seu cliente supabase está correto
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2023-10-16' as any,
 });
 
-// A chave secreta do Webhook (vamos pegar ela na Stripe no próximo passo)
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
 
 export async function POST(req: Request) {
@@ -15,34 +15,60 @@ export async function POST(req: Request) {
   let event;
 
   try {
-    // A Stripe usa uma assinatura de segurança para garantir que foi ELA quem mandou a mensagem, e não um hacker
     event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
   } catch (err: any) {
     console.error(`❌ Erro no Webhook: ${err.message}`);
     return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
   }
 
-  // Se chegou aqui, a mensagem é verdadeira e veio da Stripe!
-  // Vamos escutar o evento de "Pagamento Completo"
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-
-    // Lembra do nosso "bilhetinho"? Pegamos ele de volta aqui!
     const itensCompradosStr = session.metadata?.itensComprados;
 
     if (itensCompradosStr) {
       const itensComprados = JSON.parse(itensCompradosStr);
       
-      console.log('✅ PAGAMENTO APROVADO!');
-      console.log('📦 Itens para dar baixa no estoque:', itensComprados);
+      console.log('✅ PAGAMENTO APROVADO! Atualizando banco de dados...');
 
-      // ------------------------------------------------------------------
-      // AQUI É ONDE VOCÊ VAI CONECTAR COM SEU BANCO DE DADOS (Ex: Supabase)
-      // Para dar baixa no estoque real e salvar a venda no banco!
-      // ------------------------------------------------------------------
+      // 1. ATUALIZAR ESTOQUE E SALVAR PEDIDO
+      for (const item of itensComprados) {
+        // Buscamos o estoque atual do produto
+        const { data: produto } = await supabase
+          .from('produtos')
+          .select('estoque')
+          .eq('id', item.id)
+          .single();
+
+        if (produto) {
+          const novoEstoque = produto.estoque - item.quantidade;
+          
+          // Atualizamos o estoque no Supabase
+          await supabase
+            .from('produtos')
+            .update({ estoque: novoEstoque })
+            .eq('id', item.id);
+        }
+      }
+
+      // 2. REGISTRAR A VENDA NA TABELA 'PEDIDOS'
+      const { error: pedidoError } = await supabase
+        .from('pedidos')
+        .insert([{
+          cliente_email: session.customer_details?.email,
+          total: session.amount_total ? session.amount_total / 100 : 0,
+          itens: itensComprados, // Salva o JSON do que foi comprado
+          status: 'pago',
+          stripe_checkout_id: session.id,
+          created_at: new Date().toISOString()
+        }]);
+
+      if (pedidoError) {
+        console.error('❌ Erro ao salvar pedido:', pedidoError.message);
+      } else {
+        console.log('📦 Estoque atualizado e pedido registrado com sucesso!');
+      }
     }
   }
 
-  // Devolvemos um OK 200 para a Stripe saber que recebemos a mensagem
   return NextResponse.json({ received: true }, { status: 200 });
 }
