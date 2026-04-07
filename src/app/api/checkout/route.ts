@@ -1,55 +1,113 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { supabase } from '@/lib/supabase';
 
-// Inicializa a Stripe com a sua chave secreta
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2023-10-16' as any, // Versão da API da Stripe
+  apiVersion: '2023-10-16' as any,
 });
 
 export async function POST(request: Request) {
   try {
-    // 1. Recebe os itens do carrinho enviados pelo frontend
-    const { items } = await request.json();
+    const { items, cliente } = await request.json();
 
-    // 2. Formata os itens para o padrão que a Stripe exige
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: 'Carrinho vazio ou inválido' }, { status: 400 });
+    }
+
+    // Verifica estoque para cada item (pula itens sem ID de banco, como combos)
+    for (const item of items) {
+      const { data: produto } = await supabase
+        .from('produtos')
+        .select('estoque')
+        .eq('id', item.id)
+        .maybeSingle();
+
+      if (produto) {
+        if (produto.estoque <= 0) {
+          return NextResponse.json({ error: `Produto "${item.nome}" esgotado` }, { status: 400 });
+        }
+        if (produto.estoque < (item.quantidade || 1)) {
+          return NextResponse.json({
+            error: `Produto "${item.nome}" tem apenas ${produto.estoque} unidades em estoque`,
+          }, { status: 400 });
+        }
+      }
+    }
+
     const lineItems = items.map((item: any) => ({
       price_data: {
-        currency: 'brl', // Moeda em Real
+        currency: 'brl',
         product_data: {
           name: item.nome,
-          images:[], // Mostra a foto do produto no checkout
+          ...(item.descricao ? { description: item.descricao } : {}),
+          ...(item.imagem ? { images: [item.imagem] } : {}),
         },
-        // A Stripe exige que o valor seja em centavos. Ex: R$ 50,00 = 5000 centavos
-        unit_amount: Math.round(item.preco * 100), 
+        unit_amount: Math.round(item.preco * 100),
       },
-      quantity: item.quantidade,
+      quantity: item.quantidade || 1,
     }));
 
-    // 3. Cria a sessão de pagamento lá nos servidores da Stripe
+    const totalBruto = items.reduce(
+      (sum: number, item: any) => sum + (item.preco || 0) * (item.quantidade || 1),
+      0
+    );
+
+    // Salva o pedido como "Pendente" antes mesmo do checkout
+    const { data: pedido, error: _pedidoError } = await supabase
+      .from('pedidos')
+      .insert([
+        {
+          nome_cliente: cliente?.nome || '',
+          email_cliente: cliente?.email || '',
+          endereco: cliente?.endereco || '',
+          telefone_cliente: cliente?.telefone || '',
+          itens: items.map((item: any) => ({
+            nome: item.nome,
+            quantidade: item.quantidade || 1,
+            tamanho: item.tamanho || 'M',
+            preco: item.preco || 0,
+          })),
+          total: totalBruto,
+          status: 'Pendente',
+        },
+      ])
+      .select()
+      .single();
+
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'], // No modo teste, cartão é mais fácil. Depois podemos adicionar 'pix' e 'boleto'
+      payment_method_types: ['card', 'pix'] as any,
       line_items: lineItems,
       mode: 'payment',
-      // Para onde o usuário vai se a compra der certo:
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/sucesso`,
-      // Para onde o usuário volta se ele cancelar ou fechar a tela de pagamento:
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/carrinho`,
-
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/sucesso?pedido_id=${pedido?.id}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/cancelar`,
       metadata: {
-        // Criamos um resumo do carrinho para o Webhook saber exatamente o que descontar do estoque depois!
-        itensComprados: JSON.stringify(items.map((item: any) => ({
-          id: item.id,
-          tamanho: item.tamanho,
-          quantidade: item.quantidade
-        })))
-      }
+        pedido_id: pedido?.id,
+        itensComprados: JSON.stringify(
+          items.map((item: any) => ({
+            id: item.id,
+            tamanho: item.tamanho || 'M',
+            quantidade: item.quantidade || 1,
+            nome: item.nome,
+          }))
+        ),
+      },
+      customer_email: cliente?.email || undefined,
     });
 
-    // 4. Devolve o link da página de pagamento para o nosso site
-    return NextResponse.json({ url: session.url });
+    // Atualiza o pedido com o checkout ID da Stripe
+    if (pedido?.id) {
+      await supabase
+        .from('pedidos')
+        .update({ stripe_checkout_id: session.id })
+        .eq('id', pedido.id);
+    }
 
+    return NextResponse.json({ url: session.url });
   } catch (error: any) {
-    console.error('Erro ao criar sessão no Stripe:', error);
-    return NextResponse.json({ error: 'Erro ao processar o pagamento' }, { status: 500 });
+    console.error('Erro ao criar sessao Stripe:', error);
+    return NextResponse.json(
+      { error: 'Erro ao processar o pagamento' },
+      { status: 500 }
+    );
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 
 type Pedido = {
@@ -9,7 +9,7 @@ type Pedido = {
   nome_cliente: string;
   email_cliente: string;
   endereco: string;
-  itens: any[];
+  itens: Array<{ nome: string; quantidade: number; tamanho?: string }>;
   total: number;
   status: string;
 };
@@ -17,123 +17,176 @@ type Pedido = {
 export default function AdminPedidos() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<string>('Todos');
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Busca os pedidos no banco de dados
-  useEffect(() => {
-    const fetchPedidos = async () => {
-      const { data, error } = await supabase
-        .from('pedidos')
-        .select('*')
-        .order('created_at', { ascending: false }); // Mostra o mais recente no topo
+  const fetchPedidos = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error("Erro ao buscar pedidos:", error);
-      } else {
-        setPedidos(data || []);
-      }
-      setLoading(false);
-    };
-
-    fetchPedidos();
+    if (data) setPedidos(data);
+    else console.error('Erro ao buscar pedidos:', error);
+    setLoading(false);
   }, []);
 
-  // Atualiza o status do pedido (Pendente -> Pago -> Enviado)
-  const atualizarStatus = async (id: string, novoStatus: string) => {
-    const { error } = await supabase
-      .from('pedidos')
-      .update({ status: novoStatus })
-      .eq('id', id);
+  useEffect(() => {
+    fetchPedidos();
+  }, [fetchPedidos]);
 
+  const atualizarStatus = async (id: string, novoStatus: string) => {
+    setUpdatingId(id);
+    const { error } = await supabase.from('pedidos').update({ status: novoStatus }).eq('id', id);
     if (!error) {
-      setPedidos(pedidos.map(p => p.id === id ? { ...p, status: novoStatus } : p));
-    } else {
-      alert("Erro ao atualizar status.");
+      setPedidos(pedidos.map(p => (p.id === id ? { ...p, status: novoStatus } : p)));
     }
+    setUpdatingId(null);
+  };
+
+  const pedidosFiltrados = filter === 'Todos' ? pedidos : pedidos.filter(p => p.status === filter);
+  const counts = {
+    Todos: pedidos.length,
+    Pendente: pedidos.filter(p => p.status === 'Pendente').length,
+    Pago: pedidos.filter(p => p.status === 'Pago').length,
+    Enviado: pedidos.filter(p => p.status === 'Enviado').length,
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-[#1C2E4A]"></div>
+      <div className="bg-white rounded-xl border border-gray-100 p-12 space-y-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-24 bg-gray-50 rounded-xl animate-pulse" />
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl p-6 md:p-10 border border-gray-100">
-      <h2 className="font-monigue text-4xl text-[#1C2E4A] tracking-widest mb-8">Últimos Pedidos</h2>
+    <div className="space-y-6">
+      {/* Filter pills */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-2">Filtrar:</span>
+        {Object.entries(counts).map(([status, count]) => (
+          <button
+            key={status}
+            onClick={() => setFilter(status)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+              filter === status
+                ? 'bg-elroi-blue text-white border-elroi-blue'
+                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            {status} <span className="opacity-60">({count})</span>
+          </button>
+        ))}
+      </div>
 
-      {pedidos.length === 0 ? (
-        <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-          <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      {pedidosFiltrados.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-100 p-16 text-center">
+          <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
           </svg>
-          <p className="text-gray-500 font-bold tracking-wider uppercase">Nenhum pedido recebido ainda</p>
+          <p className="text-sm text-gray-400 font-medium">Nenhum pedido encontrado</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {pedidos.map((pedido) => (
-            <div key={pedido.id} className="border border-gray-200 rounded-2xl p-6 bg-[#F8F9FA] hover:shadow-md transition-all">
-              
-              {/* Cabeçalho do Pedido */}
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <div>
-                  <h3 className="text-xl font-black text-[#1C2E4A] uppercase tracking-wider">{pedido.nome_cliente}</h3>
-                  <p className="text-sm text-gray-500 font-medium">
-                    {new Date(pedido.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' })} 
-                    <span className="mx-2">|</span> 
-                    {pedido.email_cliente}
-                  </p>
+        <div className="space-y-3">
+          {pedidosFiltrados.map(pedido => {
+            const isExpanded = expandedId === pedido.id;
+            return (
+              <div
+                key={pedido.id}
+                className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-sm transition"
+              >
+                <div
+                  className="px-5 py-4 cursor-pointer select-none"
+                  onClick={() => setExpandedId(isExpanded ? null : pedido.id)}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-4">
+                      {/* Status indicator */}
+                      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                        pedido.status === 'Enviado' ? 'bg-blue-500' :
+                        pedido.status === 'Pago' ? 'bg-green-500' :
+                        'bg-amber-500'
+                      }`} />
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{pedido.nome_cliente || 'Sem nome'}</p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(pedido.created_at).toLocaleDateString('pt-BR', {
+                            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 ml-6 sm:ml-0">
+                      <span className="text-sm font-bold text-gray-900">
+                        R$ {Number(pedido.total).toFixed(2).replace('.', ',')}
+                      </span>
+                      <select
+                        value={pedido.status}
+                        onChange={e => { e.stopPropagation(); atualizarStatus(pedido.id, e.target.value); }}
+                        disabled={updatingId === pedido.id}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-full border cursor-pointer outline-none disabled:opacity-50 ${
+                          pedido.status === 'Enviado' ? 'border-blue-200 text-blue-700 bg-blue-50' :
+                          pedido.status === 'Pago' ? 'border-green-200 text-green-700 bg-green-50' :
+                          'border-amber-200 text-amber-700 bg-amber-50'
+                        }`}
+                      >
+                        <option value="Pendente">Pendente</option>
+                        <option value="Pago">Pago</option>
+                        <option value="Enviado">Enviado</option>
+                      </select>
+                      <svg
+                        className={`w-4 h-4 text-gray-300 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="flex items-center gap-4">
-                  <span className="font-black text-2xl text-green-600">
-                    R$ {Number(pedido.total).toFixed(2).replace('.', ',')}
-                  </span>
-                  <select 
-                    value={pedido.status}
-                    onChange={(e) => atualizarStatus(pedido.id, e.target.value)}
-                    className={`font-bold text-xs uppercase tracking-widest px-4 py-3 rounded-xl border-2 cursor-pointer outline-none transition-all shadow-sm ${
-                      pedido.status === 'Enviado' ? 'border-green-500 text-green-700 bg-green-50' :
-                      pedido.status === 'Pago' ? 'border-blue-500 text-blue-700 bg-blue-50' :
-                      'border-orange-500 text-orange-700 bg-orange-50'
-                    }`}
-                  >
-                    <option value="Pendente">⏳ Pendente</option>
-                    <option value="Pago">✅ Pago</option>
-                    <option value="Enviado">📦 Enviado</option>
-                  </select>
-                </div>
+
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="px-5 pb-5 border-t border-gray-50 pt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Endereco de Entrega</h4>
+                        <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg border border-gray-100 leading-relaxed">
+                          {pedido.endereco || 'Nao informado'}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-2">
+                          Email: {pedido.email_cliente || 'Nao informado'}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Itens</h4>
+                        <div className="space-y-2">
+                          {pedido.itens?.map((item, index) => (
+                            <div key={index} className="flex justify-between items-center text-sm bg-gray-50 px-3 py-2 rounded-lg border border-gray-100">
+                              <span className="font-medium text-gray-900">{item.quantidade}x {item.nome}</span>
+                              {item.tamanho && (
+                                <span className="text-xs text-gray-400 font-medium bg-white px-2 py-0.5 rounded">
+                                  Tam: {item.tamanho}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                          {!pedido.itens && (
+                            <p className="text-xs text-gray-400">Detalhes nao disponiveis</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              <div className="w-full h-[1px] bg-gray-200 mb-6"></div>
-
-              {/* Informações de Entrega e Itens */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Endereço */}
-                <div>
-                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Endereço de Entrega</h4>
-                  <p className="text-sm text-gray-700 font-medium bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    {pedido.endereco}
-                  </p>
-                </div>
-
-                {/* Lista de Produtos */}
-                <div>
-                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Itens Comprados</h4>
-                  <ul className="space-y-2">
-                    {pedido.itens?.map((item: any, index: number) => (
-                      <li key={index} className="flex justify-between items-center text-sm bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-                        <span className="font-bold text-[#1C2E4A]">{item.quantidade}x {item.nome}</span>
-                        <span className="text-gray-500 bg-gray-100 px-2 py-1 rounded-md font-bold text-xs">Tam: {item.tamanho}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

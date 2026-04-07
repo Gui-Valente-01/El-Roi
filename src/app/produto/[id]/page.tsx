@@ -38,11 +38,16 @@ export default function ProductPage() {
   const [frete, setFrete] = useState<string | null>(null);
 
   // Carrinho Global
+  const init = useCartStore((state) => state.init);
   const cartItems = useCartStore((state) => state.items);
   const addToCart = useCartStore((state) => state.addToCart);
   const itemCount = cartItems.reduce((acc, item) => acc + item.quantidade, 0);
 
   // Busca o produto real no Supabase
+  useEffect(() => {
+    init();
+  }, [init]);
+
   useEffect(() => {
     const fetchProduct = async () => {
       if (!productId) return;

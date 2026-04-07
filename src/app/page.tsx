@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link'; // <-- Adicionado para fazer os botões de navegação funcionarem
 import CartDrawer from '@/components/CartDrawer';
+import SiteHeader from '@/components/SiteHeader';
 import { useCartStore } from '@/store/cartStore';
 import { supabase } from '@/lib/supabase';
 
@@ -21,14 +22,11 @@ type ProdutoDB = {
 
 export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const cartItems = useCartStore((state) => state.items);
+  const init = useCartStore((state) => state.init);
   const addToCart = useCartStore((state) => state.addToCart);
-  
-  // Criamos um novo estado para guardar os produtos reais do banco
+
   const [produtosReais, setProdutosReais] = useState<ProdutoDB[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const itemCount = cartItems.reduce((acc, item) => acc + item.quantidade, 0);
 
   // Função que busca os produtos no Supabase
   const fetchProdutos = async () => {
@@ -47,10 +45,10 @@ export default function Home() {
     }
   };
 
-  // Manda buscar os produtos assim que a página carrega
   useEffect(() => {
+    init();
     fetchProdutos();
-  }, []);
+  }, [init]);
 
   // Adicionando uma trava de segurança para o tamanho
   const handleAddToCart = (product: any) => {
@@ -71,28 +69,7 @@ export default function Home() {
         Frete Grátis acima de R$ 299
       </div>
 
-      {/* HEADER */}
-      <header className="sticky top-0 z-40 bg-[#1C2E4A] text-white shadow-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
-          <div className="font-monigue text-4xl tracking-widest text-[#D9D7CF]">El Roi</div>
-          <nav className="hidden md:flex gap-8 text-sm font-medium text-white uppercase tracking-wider">
-            <a href="#colecoes" className="hover:text-[#D9D7CF] transition-colors">Coleções</a>
-            <a href="#promocoes" className="hover:text-[#D9D7CF] transition-colors">Promoções</a>
-            <Link href="/marca" className="hover:text-[#D9D7CF] transition-colors">A Marca</Link>
-          </nav>
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="relative bg-[#D9D7CF] text-[#1C2E4A] hover:bg-white transition-colors text-sm px-5 py-2.5 rounded-full font-bold uppercase tracking-wider shadow-md"
-          >
-            Carrinho
-            {itemCount > 0 && (
-              <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-black text-xs text-white border-2 border-[#1C2E4A]">
-                {itemCount}
-              </span>
-            )}
-          </button>
-        </div>
-      </header>
+      <SiteHeader onCartClick={() => setIsCartOpen(true)} />
 
       <main>
         {/* BANNER PRINCIPAL COM IMAGEM DE FUNDO DO MAR */}
