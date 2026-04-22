@@ -1,24 +1,26 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { getStripeClient, getStripeWebhookSecret } from '@/lib/stripe';
 import { supabase } from '@/lib/supabase';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2023-10-16' as any,
-});
-
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const sig = req.headers.get('stripe-signature') as string;
+  const sig = req.headers.get('stripe-signature');
 
-  let event;
+  if (!sig) {
+    return NextResponse.json({ error: 'Stripe signature ausente.' }, { status: 400 });
+  }
+
+  let event: Stripe.Event;
 
   try {
+    const stripe = getStripeClient();
+    const endpointSecret = getStripeWebhookSecret();
     event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
-  } catch (err: any) {
-    console.error('Webhook error:', err.message);
-    return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Erro desconhecido no webhook.';
+    console.error('Webhook error:', message);
+    return NextResponse.json({ error: `Webhook Error: ${message}` }, { status: 400 });
   }
 
   if (event.type === 'checkout.session.completed') {
@@ -27,7 +29,6 @@ export async function POST(req: Request) {
     const itensCompradosStr = session.metadata?.itensComprados;
 
     if (pedidoId) {
-      // Atualiza o pedido existente para "Pago"
       const { error: updateError } = await supabase
         .from('pedidos')
         .update({ status: 'Pago' })

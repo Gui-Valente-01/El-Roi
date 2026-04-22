@@ -1,22 +1,13 @@
 import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase';
+import { getStripeClient } from '@/lib/stripe';
 import { CheckoutRequestSchema } from '@/lib/validations';
-
-// Validar Stripe API Key em tempo de build
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.error('❌ ERRO: STRIPE_SECRET_KEY não configurado.');
-}
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2023-10-16' as any,
-});
 
 export async function POST(request: Request) {
   try {
+    const stripe = getStripeClient();
     const body = await request.json();
 
-    // ✅ Validação de entrada com zod
     const validationResult = CheckoutRequestSchema.safeParse({ items: body.items });
     if (!validationResult.success) {
       return NextResponse.json(
@@ -28,7 +19,6 @@ export async function POST(request: Request) {
     const { items } = validationResult.data;
     const { cliente } = body;
 
-    // Verifica estoque para cada item (pula itens sem ID de banco, como combos)
     for (const item of items) {
       const { data: produto } = await supabase
         .from('produtos')
@@ -40,10 +30,14 @@ export async function POST(request: Request) {
         if (produto.estoque <= 0) {
           return NextResponse.json({ error: `Produto "${item.nome}" esgotado` }, { status: 400 });
         }
+
         if (produto.estoque < (item.quantidade || 1)) {
-          return NextResponse.json({
-            error: `Produto "${item.nome}" tem apenas ${produto.estoque} unidades em estoque`,
-          }, { status: 400 });
+          return NextResponse.json(
+            {
+              error: `Produto "${item.nome}" tem apenas ${produto.estoque} unidades em estoque`,
+            },
+            { status: 400 }
+          );
         }
       }
     }
@@ -66,7 +60,6 @@ export async function POST(request: Request) {
       0
     );
 
-    // Salva o pedido como "Pendente" antes mesmo do checkout
     const { data: pedido, error: _pedidoError } = await supabase
       .from('pedidos')
       .insert([
@@ -108,7 +101,6 @@ export async function POST(request: Request) {
       customer_email: cliente?.email || undefined,
     });
 
-    // Atualiza o pedido com o checkout ID da Stripe
     if (pedido?.id) {
       await supabase
         .from('pedidos')
@@ -117,11 +109,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ url: session.url });
-  } catch (error: any) {
-    console.error('Erro ao criar sessao Stripe:', error);
-    return NextResponse.json(
-      { error: 'Erro ao processar o pagamento' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    console.error('Erro ao criar sessão Stripe:', error);
+    return NextResponse.json({ error: 'Erro ao processar o pagamento' }, { status: 500 });
   }
 }
