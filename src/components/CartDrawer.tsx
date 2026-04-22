@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import Image from 'next/image';
 import { useCartStore } from '@/store/cartStore';
 
 type CartDrawerProps = {
@@ -133,11 +134,14 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               {items.map((item) => (
                 <div key={`${item.id}-${item.tamanho}`} className="flex gap-4 bg-black/20 p-4 rounded-2xl border border-gray-700/30">
                   <div className="h-24 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-gray-800">
-                    <img
-                      src={item.imagem}
+                    <Image
+                      src={item.imagem || '/fallback-image.png'}
                       alt={item.nome}
+                      width={80}
+                      height={96}
                       className="h-full w-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      priority={false}
+                      loading="lazy"
                     />
                   </div>
                   <div className="flex flex-1 flex-col justify-between">

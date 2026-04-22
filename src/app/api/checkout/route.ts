@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase';
+import { CheckoutRequestSchema } from '@/lib/validations';
+
+// Validar Stripe API Key em tempo de build
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error('❌ ERRO: STRIPE_SECRET_KEY não configurado.');
+}
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2023-10-16' as any,
@@ -8,11 +14,19 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 
 export async function POST(request: Request) {
   try {
-    const { items, cliente } = await request.json();
+    const body = await request.json();
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: 'Carrinho vazio ou inválido' }, { status: 400 });
+    // ✅ Validação de entrada com zod
+    const validationResult = CheckoutRequestSchema.safeParse({ items: body.items });
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: 'Dados inválidos', details: validationResult.error.flatten() },
+        { status: 400 }
+      );
     }
+
+    const { items } = validationResult.data;
+    const { cliente } = body;
 
     // Verifica estoque para cada item (pula itens sem ID de banco, como combos)
     for (const item of items) {

@@ -4,7 +4,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import AdminPedidos from '@/components/AdminPedidos';
 
-const ADMIN_PASSWORD = 'admin123';
+/**
+ * ✅ AUTENTICAÇÃO MELHORADA
+ * Este painel usa um token seguro ao invés de senha hardcoded
+ * Configure NEXT_PUBLIC_ADMIN_TOKEN no .env.local
+ */
+const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
 
 type Produto = {
   id: string;
@@ -26,7 +31,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
 
-  const [password, setPassword] = useState('');
+  const [token, setToken] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingProdutoId, setEditingProdutoId] = useState<string | null>(null);
@@ -77,8 +82,8 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem('elroi-admin-auth');
-    if (saved === 'true') {
+    const saved = window.localStorage.getItem('admin-token');
+    if (saved && validateToken(saved)) {
       setLoggedIn(true);
       fetchProdutos().finally(() => setFetchLoading(false));
     } else {
@@ -86,20 +91,34 @@ export default function AdminPage() {
     }
   }, [fetchProdutos]);
 
-  const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) {
-      window.localStorage.setItem('elroi-admin-auth', 'true');
-      setLoggedIn(true);
-      setError(null);
-      setPassword('');
-      fetchProdutos().finally(() => setFetchLoading(false));
-    } else {
-      setError('Senha incorreta. Tente novamente.');
+  /**
+   * Valida o token de autenticação
+   */
+  const validateToken = (inputToken: string): boolean => {
+    if (!ADMIN_TOKEN) {
+      setError('❌ Erro: NEXT_PUBLIC_ADMIN_TOKEN não configurado no .env.local');
+      return false;
     }
+    return inputToken === ADMIN_TOKEN;
+  };
+
+  const handleLogin = () => {
+    if (!validateToken(token)) {
+      setError('Token inválido. Verifique suas credenciais.');
+      return;
+    }
+    
+    window.localStorage.setItem('admin-token', token);
+    document.cookie = `admin-token=${token}; path=/; max-age=86400; SameSite=Strict`;
+    setLoggedIn(true);
+    setError(null);
+    setToken('');
+    fetchProdutos().finally(() => setFetchLoading(false));
   };
 
   const logout = () => {
-    window.localStorage.removeItem('elroi-admin-auth');
+    window.localStorage.removeItem('admin-token');
+    document.cookie = 'admin-token=; path=/; max-age=0';
     setLoggedIn(false);
     clearForm();
   };
@@ -205,17 +224,17 @@ export default function AdminPage() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-10 border border-gray-100 text-center">
           <div className="w-16 h-16 bg-elroi-blue text-white rounded-2xl flex items-center justify-center text-xl font-black mx-auto mb-6 shadow-lg">
-            ER
+            🔒
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Painel Admin</h1>
           <p className="text-sm text-gray-400 mb-8">El Roi — Acesso restrito</p>
           <input
             type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
+            value={token}
+            onChange={e => setToken(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleLogin()}
             className="w-full border border-gray-200 rounded-xl px-4 py-3 mb-4 text-sm focus:ring-2 focus:ring-elroi-blue focus:border-transparent outline-none transition"
-            placeholder="Senha administrativa"
+            placeholder="Token de acesso"
           />
           <button
             onClick={handleLogin}
