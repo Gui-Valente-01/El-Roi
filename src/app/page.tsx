@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link'; // <-- Adicionado para fazer os botões de navegação funcionarem
 import CartDrawer from '@/components/CartDrawer';
 import SiteHeader from '@/components/SiteHeader';
@@ -123,10 +124,12 @@ export default function Home() {
               </button>
             </div>
             <div className="h-64 md:h-80 rounded-2xl overflow-hidden shadow-inner relative bg-gray-100">
-              <img
-                src={'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=1000&auto=format&fit=crop'}
-                alt="Promoção combo"
+              <Image
+                src="https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=1000&auto=format&fit=crop"
+                alt="Promocao combo"
+                fill
                 className="h-full w-full object-cover"
+                sizes="(min-width: 768px) 50vw, 100vw"
               />
             </div>
           </div>
@@ -182,14 +185,13 @@ export default function Home() {
                   
                   <Link href={`/produto/${product.id}`} className="block cursor-pointer flex-grow">
                     {product.imagem ? (
-                      <img
+                      <Image
                         src={product.imagem}
                         alt={product.nome}
+                        width={640}
+                        height={640}
+                        unoptimized
                         className="h-56 w-full object-cover rounded-lg group-hover:opacity-90 transition-opacity"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = '/fallback-image.png';
-                        }}
                       />
                     ) : (
                       <div className="h-56 rounded-lg bg-gray-100 flex items-center justify-center text-sm font-bold text-center text-gray-400">

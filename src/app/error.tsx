@@ -10,28 +10,30 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <div className="min-h-screen bg-[#1C2E4A] text-white flex items-center justify-center p-4">
-      <div className="text-center space-y-8 max-w-md">
+    <div className="flex min-h-screen items-center justify-center bg-[#1C2E4A] p-4 text-white">
+      <div className="max-w-md space-y-8 text-center">
         <div>
-          <h1 className="font-monigue text-6xl md:text-8xl tracking-widest text-[#D9D7CF] mb-4">
+          <h1 className="mb-4 font-monigue text-6xl tracking-widest text-[#D9D7CF] md:text-8xl">
             Oops!
           </h1>
-          <p className="text-lg text-gray-300 mb-2">Algo deu errado</p>
-          <p className="text-sm text-gray-400 mb-4">{error.message}</p>
+          <p className="mb-2 text-lg text-gray-300">Algo deu errado</p>
+          <p className="mb-4 text-sm text-gray-400">
+            Nao conseguimos concluir essa acao agora. Tente novamente em instantes.
+          </p>
         </div>
 
-        <div className="flex gap-4 justify-center">
+        <div className="flex justify-center gap-4">
           <button
             onClick={reset}
-            className="px-8 py-3 bg-[#D9D7CF] text-[#1C2E4A] font-bold hover:bg-white transition-colors rounded"
+            className="rounded bg-[#D9D7CF] px-8 py-3 font-bold text-[#1C2E4A] transition-colors hover:bg-white"
           >
             Tentar Novamente
           </button>
           <Link
             href="/"
-            className="px-8 py-3 bg-gray-700 text-white font-bold hover:bg-gray-600 transition-colors rounded"
+            className="rounded bg-gray-700 px-8 py-3 font-bold text-white transition-colors hover:bg-gray-600"
           >
-            Voltar ao Início
+            Voltar ao Inicio
           </Link>
         </div>
 

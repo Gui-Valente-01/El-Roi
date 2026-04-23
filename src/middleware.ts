@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  ADMIN_SESSION_COOKIE_NAME,
+  verifyAdminSessionToken,
+} from '@/lib/admin-session';
 
-export function middleware(request: NextRequest) {
-  // Protege rotas admin
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    const adminToken = request.cookies.get('admin-token')?.value;
-    
-    // Se não tem token e não está na página de login, redireciona
-    if (!adminToken && request.nextUrl.pathname !== '/admin') {
-      return NextResponse.redirect(new URL('/admin', request.url));
-    }
+export async function middleware(request: NextRequest) {
+  if (!request.nextUrl.pathname.startsWith('/admin')) {
+    return NextResponse.next();
+  }
+
+  if (request.nextUrl.pathname === '/admin') {
+    return NextResponse.next();
+  }
+
+  const sessionToken = request.cookies.get(ADMIN_SESSION_COOKIE_NAME)?.value;
+  const authenticated = await verifyAdminSessionToken(sessionToken);
+
+  if (!authenticated) {
+    return NextResponse.redirect(new URL('/admin', request.url));
   }
 
   return NextResponse.next();

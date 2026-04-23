@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import CartDrawer from '@/components/CartDrawer';
@@ -156,9 +157,12 @@ export default function ColecaoInternaPage() {
               >
                 <Link href={`/produto/${product.id}`} className="block cursor-pointer flex-grow">
                   {product.imagem ? (
-                    <img
+                    <Image
                       src={product.imagem}
                       alt={product.nome}
+                      width={640}
+                      height={640}
+                      unoptimized
                       className="h-56 w-full object-cover rounded-lg group-hover:opacity-90 transition-opacity"
                     />
                   ) : (

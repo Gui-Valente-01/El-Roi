@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
@@ -164,11 +165,13 @@ export default function ProductPage() {
           <div className="w-full bg-[#F8F9FA] rounded-3xl overflow-hidden shadow-lg border border-gray-100 relative group">
             <div className="aspect-[4/5] w-full relative flex items-center justify-center bg-gray-100">
               {product.imagem ? (
-                <img
+                <Image
                   src={product.imagem}
                   alt={product.nome}
+                  fill
+                  unoptimized
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/fallback-image.png'; }}
+                  sizes="(min-width: 768px) 50vw, 100vw"
                 />
               ) : (
                 <span className="text-gray-400 font-monigue text-3xl opacity-50">Sem Imagem</span>
