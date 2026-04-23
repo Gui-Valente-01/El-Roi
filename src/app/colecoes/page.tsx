@@ -30,8 +30,7 @@ export default function ColecoesPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <Link href="/colecoes/genesis" className="relative h-96 rounded-3xl overflow-hidden group cursor-pointer shadow-xl bg-cover bg-center block"
-            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1517502474497-29ab5c192e59?q=80&w=1000&auto=format&fit=crop')" }}>
+          <Link href="/colecoes/genesis" className="relative h-96 rounded-3xl overflow-hidden group cursor-pointer shadow-xl bg-cover bg-center block bg-colecao-1">
             <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all duration-500" />
             <div className="absolute inset-0 flex flex-col justify-center items-center px-6 text-center text-white">
               <h3 className="font-monigue text-5xl tracking-widest drop-shadow-lg group-hover:scale-105 transition-transform duration-500">Gênesis</h3>
@@ -42,8 +41,7 @@ export default function ColecoesPage() {
             </div>
           </Link>
 
-          <Link href="/colecoes/essenciais" className="relative h-96 rounded-3xl overflow-hidden group cursor-pointer shadow-xl bg-cover bg-center block"
-            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1618331835717-801e976710b2?q=80&w=1000&auto=format&fit=crop')" }}>
+          <Link href="/colecoes/essenciais" className="relative h-96 rounded-3xl overflow-hidden group cursor-pointer shadow-xl bg-cover bg-center block bg-colecao-2">
             <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all duration-500" />
             <div className="absolute inset-0 flex flex-col justify-center items-center px-6 text-center text-white">
               <h3 className="font-monigue text-5xl tracking-widest drop-shadow-lg group-hover:scale-105 transition-transform duration-500">Essenciais</h3>

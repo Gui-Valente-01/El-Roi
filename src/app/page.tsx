@@ -74,9 +74,8 @@ export default function Home() {
 
       <main>
         {/* BANNER PRINCIPAL COM IMAGEM DE FUNDO DO MAR */}
-        <section 
-          className="relative h-[80vh] w-full bg-cover bg-center flex items-center justify-center"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1505142468610-359e7d316be0?q=80&w=2070&auto=format&fit=crop')" }}
+        <section
+          className="relative h-[80vh] w-full bg-cover bg-center flex items-center justify-center bg-hero"
         >
           <div className="absolute inset-0 bg-[#1C2E4A]/65"></div>
           
@@ -141,8 +140,7 @@ export default function Home() {
           
           <div className="grid gap-8 md:grid-cols-2">
             {/* Card Coleção Gênesis */}
-            <Link href="/colecoes" className="relative h-80 md:h-96 rounded-3xl overflow-hidden group cursor-pointer shadow-xl bg-cover bg-center block"
-              style={{ backgroundImage: "url('https://images.unsplash.com/photo-1517502474497-29ab5c192e59?q=80&w=1000&auto=format&fit=crop')" }}>
+            <Link href="/colecoes" className="relative h-80 md:h-96 rounded-3xl overflow-hidden group cursor-pointer shadow-xl bg-cover bg-center block bg-colecao-1">
               <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all duration-500" />
               <div className="absolute inset-0 flex flex-col justify-center items-center px-6 text-center text-white">
                 <h3 className="font-monigue text-5xl md:text-6xl tracking-widest drop-shadow-lg group-hover:scale-105 transition-transform duration-500">Gênesis</h3>
@@ -154,8 +152,7 @@ export default function Home() {
             </Link>
 
             {/* Card Coleção Essenciais */}
-            <Link href="/colecoes" className="relative h-80 md:h-96 rounded-3xl overflow-hidden group cursor-pointer shadow-xl bg-cover bg-center block"
-              style={{ backgroundImage: "url('https://images.unsplash.com/photo-1618331835717-801e976710b2?q=80&w=1000&auto=format&fit=crop')" }}>
+            <Link href="/colecoes" className="relative h-80 md:h-96 rounded-3xl overflow-hidden group cursor-pointer shadow-xl bg-cover bg-center block bg-colecao-2">
               <div className="absolute inset-0 bg-[#1C2E4A]/50 group-hover:bg-[#1C2E4A]/30 transition-all duration-500" />
               <div className="absolute inset-0 flex flex-col justify-center items-center px-6 text-center text-white">
                 <h3 className="font-monigue text-5xl md:text-6xl tracking-widest drop-shadow-lg group-hover:scale-105 transition-transform duration-500">Essenciais</h3>
